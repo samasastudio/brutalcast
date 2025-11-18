@@ -1,0 +1,5 @@
+{
+  "name": "Brutalcast",
+  "description": "A modern brutalist-style weather app that uses generative AI to compare and contrast weather statistics between cities. It dynamically creates data tables, cards, and various graphs, topped with an AI-generated image and summary.",
+  "requestFramePermissions": []
+}
