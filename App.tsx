@@ -2,11 +2,14 @@ import React, { useState, useCallback } from 'react';
 import { SearchForm } from './components/SearchForm';
 import { Loader } from './components/Loader';
 import { ResultsDisplay } from './components/ResultsDisplay';
+import { ApiKeyInput } from './components/ApiKeyInput';
 import { getWeatherForCities } from './services/weatherService';
 import { generateUiLayout, generateImage } from './services/geminiService';
 import type { WeatherData, GeneratedLayout, Unit } from './types';
+import { ApiKeyProvider, useApiKeys } from './context/ApiKeyContext';
 
-const App: React.FC = () => {
+const BrutalcastApp: React.FC = () => {
+  const { geminiKey, openWeatherKey, hasKeys } = useApiKeys();
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
   const [weatherData, setWeatherData] = useState<Record<string, WeatherData> | null>(null);
@@ -17,12 +20,8 @@ const App: React.FC = () => {
   const handleSearch = useCallback(async (cities: string[], prompt: string, selectedUnit: Unit) => {
     if (cities.length === 0) return;
 
-    if (!process.env.GEMINI_API_KEY) {
-      setError("Gemini API Key is missing. Please configure it in your environment variables.");
-      return;
-    }
-    if (!process.env.OPENWEATHER_API_KEY) {
-      setError("OpenWeather API Key is missing. Please configure it in your environment variables.");
+    if (!geminiKey || !openWeatherKey) {
+      setError("API Keys are missing. Please reload and enter them.");
       return;
     }
 
@@ -35,16 +34,16 @@ const App: React.FC = () => {
 
     try {
       // 1. Fetch weather data from live OpenWeather API
-      const data = await getWeatherForCities(cities, selectedUnit);
+      const data = await getWeatherForCities(cities, selectedUnit, openWeatherKey);
       setWeatherData(data);
 
       // 2. Generate UI layout, blurb, and image prompt from Gemini
-      const layout = await generateUiLayout(data, prompt, selectedUnit);
+      const layout = await generateUiLayout(data, prompt, selectedUnit, geminiKey);
       setGeneratedLayout(layout);
 
       // 3. Generate image from Imagen using the prompt from step 2
       if (layout.imagePrompt) {
-        const imageUrl = await generateImage(layout.imagePrompt);
+        const imageUrl = await generateImage(layout.imagePrompt, geminiKey);
         setGeneratedImageUrl(imageUrl);
       }
 
@@ -54,11 +53,13 @@ const App: React.FC = () => {
     } finally {
       setIsLoading(false);
     }
-  }, []);
+  }, [geminiKey, openWeatherKey]);
 
   return (
-    <div className="min-h-screen bg-gray-100 text-gray-900 p-4 sm:p-6 lg:p-8">
-      <main className="max-w-7xl mx-auto">
+    <div className="min-h-screen bg-gray-100 text-gray-900 p-4 sm:p-6 lg:p-8 relative">
+      {!hasKeys && <ApiKeyInput />}
+
+      <main className={`max-w-7xl mx-auto transition-opacity duration-500 ${!hasKeys ? 'opacity-0 pointer-events-none' : 'opacity-100'}`}>
         <header className="text-center mb-8">
           <h1 className="text-4xl md:text-6xl font-bold tracking-tighter border-4 border-black p-4 inline-block shadow-[8px_8px_0px_#facc15]">
             Brutalcast
@@ -77,7 +78,7 @@ const App: React.FC = () => {
             <p>{error}</p>
           </div>
         )}
-        
+
         {!isLoading && weatherData && generatedLayout && (
           <ResultsDisplay
             weatherData={weatherData}
@@ -87,10 +88,18 @@ const App: React.FC = () => {
           />
         )}
       </main>
-      <footer className="text-center mt-12 text-gray-500 text-sm">
+      <footer className={`text-center mt-12 text-gray-500 text-sm transition-opacity duration-500 ${!hasKeys ? 'opacity-0' : 'opacity-100'}`}>
         <p>Powered by Generative UI &amp; Modern Brutalism</p>
       </footer>
     </div>
+  );
+};
+
+const App: React.FC = () => {
+  return (
+    <ApiKeyProvider>
+      <BrutalcastApp />
+    </ApiKeyProvider>
   );
 };
 

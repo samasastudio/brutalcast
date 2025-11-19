@@ -1,7 +1,7 @@
 import { GoogleGenAI, Type } from "@google/genai";
 import type { WeatherData, GeneratedLayout, Unit } from '../types';
 
-const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+
 
 const uiGenerationSchema = {
     type: Type.OBJECT,
@@ -65,35 +65,36 @@ const uiGenerationSchema = {
     required: ['blurb', 'imagePrompt', 'uiComponents']
 };
 
-export async function generateUiLayout(weatherData: Record<string, WeatherData>, userPrompt: string, unit: Unit): Promise<GeneratedLayout> {
-  const weatherDataString = JSON.stringify(Object.values(weatherData), null, 2);
-  
-  const unitInstructions = `
+export async function generateUiLayout(weatherData: Record<string, WeatherData>, userPrompt: string, unit: Unit, apiKey: string): Promise<GeneratedLayout> {
+    const ai = new GoogleGenAI({ apiKey });
+    const weatherDataString = JSON.stringify(Object.values(weatherData), null, 2);
+
+    const unitInstructions = `
     The current unit system is '${unit}'.
     - For 'imperial' units, temperature is in Fahrenheit (°F) and wind speed is in miles per hour (mph).
     - For 'metric' units, temperature is in Celsius (°C) and wind speed is in meters per second (m/s).
     IMPORTANT: Please ensure that any titles or labels you generate for the UI components reflect this. For example, a chart title should be 'Temperature Comparison (°F)' if the unit is imperial.
   `;
 
-  let generationInstructions: string;
-  if (userPrompt.trim()) {
-    generationInstructions = `
+    let generationInstructions: string;
+    if (userPrompt.trim()) {
+        generationInstructions = `
       The user has provided a specific request for the UI layout.
       IMPORTANT: You MUST generate ONLY the components described in the user's request. Do NOT add any extra components.
       Fulfill their request as accurately as possible.
       User's request: "${userPrompt}"
     `;
-  } else {
-    generationInstructions = `
+    } else {
+        generationInstructions = `
       The user has not specified a layout. Please generate a diverse and interesting layout automatically.
       Your response should include 3 to 5 different UI components to compare the weather data in interesting ways.
       - For charts, choose data keys that make for an interesting comparison.
       - For tables, select a few key columns.
       - For cards, select a few cities to highlight. Ensure the 'cities' prop is an array of city name strings.
     `;
-  }
+    }
 
-  const prompt = `
+    const prompt = `
     Analyze the following weather data for several cities and generate a UI layout configuration.
     Your response MUST be a valid JSON object matching the provided schema.
 
@@ -117,33 +118,34 @@ export async function generateUiLayout(weatherData: Record<string, WeatherData>,
     ${weatherDataString}
   `;
 
-  try {
-    const response = await ai.models.generateContent({
-        model: "gemini-2.5-flash",
-        contents: prompt,
-        config: {
-            responseMimeType: "application/json",
-            responseSchema: uiGenerationSchema,
-        },
-    });
+    try {
+        const response = await ai.models.generateContent({
+            model: "gemini-2.5-flash",
+            contents: prompt,
+            config: {
+                responseMimeType: "application/json",
+                responseSchema: uiGenerationSchema,
+            },
+        });
 
-    const jsonText = response.text.trim();
-    const layout = JSON.parse(jsonText);
-    
-    // Basic validation
-    if (!layout.blurb || !layout.imagePrompt || !Array.isArray(layout.uiComponents)) {
-      throw new Error("Invalid layout structure received from AI.");
+        const jsonText = response.text.trim();
+        const layout = JSON.parse(jsonText);
+
+        // Basic validation
+        if (!layout.blurb || !layout.imagePrompt || !Array.isArray(layout.uiComponents)) {
+            throw new Error("Invalid layout structure received from AI.");
+        }
+
+        return layout as GeneratedLayout;
+
+    } catch (error) {
+        console.error("Error generating UI layout:", error);
+        throw new Error("Failed to generate UI layout from AI. The model may have returned an unexpected format.");
     }
-    
-    return layout as GeneratedLayout;
-
-  } catch (error) {
-    console.error("Error generating UI layout:", error);
-    throw new Error("Failed to generate UI layout from AI. The model may have returned an unexpected format.");
-  }
 }
 
-export async function generateImage(prompt: string): Promise<string> {
+export async function generateImage(prompt: string, apiKey: string): Promise<string> {
+    const ai = new GoogleGenAI({ apiKey });
     try {
         const response = await ai.models.generateImages({
             model: 'imagen-4.0-generate-001',

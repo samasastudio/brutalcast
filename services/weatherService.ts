@@ -2,7 +2,7 @@ import type { WeatherData, Unit, DailyForecast } from '../types';
 
 async function getWeatherForCity(city: string, unit: Unit, apiKey: string): Promise<WeatherData> {
     const baseUrl = 'https://api.openweathermap.org/data/2.5';
-    
+
     // Fetch current weather and forecast in parallel
     const [currentWeatherRes, forecastRes] = await Promise.all([
         fetch(`${baseUrl}/weather?q=${encodeURIComponent(city)}&units=${unit}&appid=${apiKey}`),
@@ -23,20 +23,20 @@ async function getWeatherForCity(city: string, unit: Unit, apiKey: string): Prom
 
     // Process forecast data to get daily summaries for the next 5 unique days
     const dailyForecasts: DailyForecast[] = [];
-    
+
     // Get unique upcoming days from the forecast list
     const uniqueDays = [...new Set(forecastData.list.map((item: any) => new Date(item.dt * 1000).toISOString().split('T')[0]))];
 
     // FIX: Explicitly type `dateStr` as `string` to resolve error where it's inferred as `unknown`.
     uniqueDays.slice(0, 5).forEach((dateStr: string) => {
         const dayForecasts = forecastData.list.filter((item: any) => new Date(item.dt * 1000).toISOString().startsWith(dateStr));
-        
+
         if (dayForecasts.length > 0) {
             const dayName = new Date(dayForecasts[0].dt * 1000).toLocaleDateString('en-US', { weekday: 'short' });
 
             // Find temperature around noon for a representative daily temp
             const noonForecast = dayForecasts.find((f: any) => new Date(f.dt * 1000).getUTCHours() >= 12) || dayForecasts[Math.floor(dayForecasts.length / 2)];
-            
+
             // Calculate average humidity and max chance of rain for the day
             const avgHumidity = dayForecasts.reduce((sum: number, f: any) => sum + f.main.humidity, 0) / dayForecasts.length;
             const maxChanceOfRain = Math.max(...dayForecasts.map((f: any) => f.pop));
@@ -71,17 +71,16 @@ async function getWeatherForCity(city: string, unit: Unit, apiKey: string): Prom
     };
 }
 
-export const getWeatherForCities = async (cities: string[], unit: Unit): Promise<Record<string, WeatherData>> => {
-    const apiKey = process.env.OPENWEATHER_API_KEY;
+export const getWeatherForCities = async (cities: string[], unit: Unit, apiKey: string): Promise<Record<string, WeatherData>> => {
     if (!apiKey) {
         throw new Error("OpenWeather API key is not configured.");
     }
-    
+
     // Fetch all city data concurrently
     const weatherPromises = cities.map(city => getWeatherForCity(city, unit, apiKey));
-    
+
     const results = await Promise.all(weatherPromises);
-    
+
     const weatherDataByCity: Record<string, WeatherData> = {};
     results.forEach(data => {
         // Find the original city name from the input array to use as the key,
