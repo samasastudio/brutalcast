@@ -20,10 +20,10 @@ const BrutalistContainer: React.FC<{ children: React.ReactNode; className?: stri
 );
 
 export const ResultsDisplay: React.FC<ResultsDisplayProps> = ({ weatherData, layout, imageUrl, unit }) => {
-  
+
   const renderUiComponent = (config: UiComponentConfig) => {
     const allCitiesData = Object.values(weatherData);
-    
+
     switch (config.type) {
       case 'TABLE':
         return <WeatherTable {...config.props} allData={allCitiesData} unit={unit} />;
@@ -45,29 +45,29 @@ export const ResultsDisplay: React.FC<ResultsDisplayProps> = ({ weatherData, lay
       <div className="animate-fade-in-up">
         <BrutalistContainer>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6 items-center">
-              <div className="md:col-span-1">
-                  {imageUrl ? (
-                      <img src={imageUrl} alt={layout.imagePrompt} className="w-full h-auto border-4 border-black object-cover" />
-                  ) : (
-                      <div className="w-full h-64 bg-gray-200 border-4 border-black flex items-center justify-center">
-                          <p className="text-gray-500">Generating image...</p>
-                      </div>
-                  )}
-              </div>
-              <div className="md:col-span-2">
-                  <p className="text-xl md:text-2xl font-bold bg-yellow-400 p-4 border-2 border-black">
-                      "{layout.blurb}"
-                  </p>
-              </div>
+            <div className="md:col-span-1">
+              {imageUrl ? (
+                <img src={imageUrl} alt={layout.imagePrompt} className="w-full h-auto border-4 border-black object-cover" />
+              ) : (
+                <div className="w-full h-64 bg-gray-200 border-4 border-black flex items-center justify-center">
+                  <p className="text-gray-500">Generating image...</p>
+                </div>
+              )}
+            </div>
+            <div className="md:col-span-2">
+              <p className="text-xl md:text-2xl font-bold bg-yellow-400 p-4 border-2 border-black">
+                "{layout.blurb}"
+              </p>
+            </div>
           </div>
         </BrutalistContainer>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-10">
         {layout.uiComponents.map((config, index) => (
-          <div 
-            key={index} 
-            className="animate-fade-in-up" 
+          <div
+            key={index}
+            className="animate-fade-in-up min-w-0"
             style={{ animationDelay: `${150 + index * 100}ms` }}
           >
             <BrutalistContainer>

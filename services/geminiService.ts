@@ -1,8 +1,6 @@
 import { GoogleGenAI, Type } from "@google/genai";
 import type { WeatherData, GeneratedLayout, Unit } from '../types';
 
-
-
 const uiGenerationSchema = {
     type: Type.OBJECT,
     properties: {
@@ -54,6 +52,10 @@ const uiGenerationSchema = {
                             zAxisKey: {
                                 type: Type.STRING,
                                 description: "The data key to use for the Z-axis (bubble size). Used by SCATTER_CHART."
+                            },
+                            limitDays: {
+                                type: Type.INTEGER,
+                                description: "Optional. The number of days to show in the forecast line chart (1-5). Default is 5. Used by LINE_CHART."
                             }
                         }
                     }
@@ -107,6 +109,7 @@ export async function generateUiLayout(weatherData: Record<string, WeatherData>,
     Regardless of the mode, remember these global rules:
     - The 'blurb' should be a single, witty sentence that summarizes the weather comparison.
     - The 'imagePrompt' MUST describe a 2D vector illustration with a flat design. The style must be bold and graphic, using a limited color palette of black, white, and vibrant yellow (#facc15) to match the UI. It should have clean lines, hard shadows, no gradients, and feel like a modern screen print or vector art poster. Avoid 3D or photographic styles.
+    - **CRITICAL**: Unless the user explicitly requests a specific subset of cities, you MUST include ALL available cities from the data in the 'cities' prop for every component (TABLE, CARD, CHARTS). Do not arbitrarily pick just one city. We want to compare them all.
     
     Component-specific rules:
     - BAR_CHART: Use 'dataKeys' to select metrics from the main weather object.

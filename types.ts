@@ -28,26 +28,27 @@ export interface WeatherData {
 
 export type UiComponentType = 'TABLE' | 'CARD' | 'BAR_CHART' | 'LINE_CHART' | 'SCATTER_CHART';
 
-interface TableProps {
+export interface TableProps {
   cities: string[];
   dataKeys: (keyof WeatherData)[];
 }
 
-interface CardProps {
+export interface CardProps {
   cities: string[];
 }
 
-interface BarChartProps {
+export interface BarChartProps {
   dataKeys: (keyof WeatherData)[];
 }
 
-interface LineChartProps {
+export interface LineChartProps {
   xAxisKey: keyof DailyForecast;
   yAxisKey: keyof DailyForecast;
   cities: string[];
+  limitDays?: number;
 }
 
-interface ScatterChartProps {
+export interface ScatterChartProps {
   xAxisKey: keyof WeatherData;
   yAxisKey: keyof WeatherData;
   zAxisKey: keyof WeatherData;

@@ -7,6 +7,7 @@ import { getWeatherForCities } from './services/weatherService';
 import { generateUiLayout, generateImage } from './services/geminiService';
 import type { WeatherData, GeneratedLayout, Unit } from './types';
 import { ApiKeyProvider, useApiKeys } from './context/ApiKeyContext';
+import { useRateLimit } from './hooks/useRateLimit';
 
 const BrutalcastApp: React.FC = () => {
   const { geminiKey, openWeatherKey, hasKeys } = useApiKeys();
@@ -16,6 +17,7 @@ const BrutalcastApp: React.FC = () => {
   const [generatedLayout, setGeneratedLayout] = useState<GeneratedLayout | null>(null);
   const [generatedImageUrl, setGeneratedImageUrl] = useState<string | null>(null);
   const [unit, setUnit] = useState<Unit>('imperial');
+  const { isRateLimited, remainingRequests, incrementCount, resetTime } = useRateLimit();
 
   const handleSearch = useCallback(async (cities: string[], prompt: string, selectedUnit: Unit) => {
     if (cities.length === 0) return;
@@ -24,6 +26,14 @@ const BrutalcastApp: React.FC = () => {
       setError("API Keys are missing. Please reload and enter them.");
       return;
     }
+
+    if (isRateLimited) {
+      const resetDate = resetTime ? new Date(resetTime).toLocaleTimeString() : 'soon';
+      setError(`Rate limit reached. You have 0 requests remaining. Limit resets at ${resetDate}.`);
+      return;
+    }
+
+    incrementCount();
 
     setIsLoading(true);
     setError(null);
@@ -43,8 +53,13 @@ const BrutalcastApp: React.FC = () => {
 
       // 3. Generate image from Imagen using the prompt from step 2
       if (layout.imagePrompt) {
-        const imageUrl = await generateImage(layout.imagePrompt, geminiKey);
-        setGeneratedImageUrl(imageUrl);
+        try {
+          const imageUrl = await generateImage(layout.imagePrompt, geminiKey);
+          setGeneratedImageUrl(imageUrl);
+        } catch (imageError) {
+          console.error("Image generation failed:", imageError);
+          // Do not set main error, just leave image as null
+        }
       }
 
     } catch (err) {
@@ -53,7 +68,7 @@ const BrutalcastApp: React.FC = () => {
     } finally {
       setIsLoading(false);
     }
-  }, [geminiKey, openWeatherKey]);
+  }, [geminiKey, openWeatherKey, isRateLimited, incrementCount, resetTime]);
 
   return (
     <div className="min-h-screen bg-gray-100 text-gray-900 p-4 sm:p-6 lg:p-8 relative">
@@ -66,6 +81,9 @@ const BrutalcastApp: React.FC = () => {
           </h1>
           <p className="mt-4 text-lg text-gray-700 max-w-2xl mx-auto">
             Compare city climates with AI-generated visualizations. Enter cities, get insights.
+          </p>
+          <p className="mt-2 text-sm text-gray-500 font-mono">
+            Requests remaining: {remainingRequests}
           </p>
         </header>
 
