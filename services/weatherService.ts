@@ -23,16 +23,32 @@ async function getWeatherForCity(city: string, unit: Unit, apiKey: string): Prom
 
     // Process forecast data to get daily summaries for the next 5 unique days
     const dailyForecasts: DailyForecast[] = [];
+    const seenDayNames = new Set<string>(); // Track day names to prevent duplicates
 
-    // Get unique upcoming days from the forecast list
-    const uniqueDays = [...new Set(forecastData.list.map((item: any) => new Date(item.dt * 1000).toISOString().split('T')[0]))];
+    // Get unique upcoming days from the forecast list using LOCAL date (not UTC)
+    // This ensures day grouping matches the day name generation, preventing duplicate day labels
+    const getLocalDateString = (timestamp: number) => {
+        const date = new Date(timestamp * 1000);
+        const year = date.getFullYear();
+        const month = String(date.getMonth() + 1).padStart(2, '0');
+        const day = String(date.getDate()).padStart(2, '0');
+        return `${year}-${month}-${day}`;
+    };
+
+    const uniqueDays = [...new Set(forecastData.list.map((item: any) => getLocalDateString(item.dt)))];
 
     // FIX: Explicitly type `dateStr` as `string` to resolve error where it's inferred as `unknown`.
     uniqueDays.slice(0, 5).forEach((dateStr: string) => {
-        const dayForecasts = forecastData.list.filter((item: any) => new Date(item.dt * 1000).toISOString().startsWith(dateStr));
+        const dayForecasts = forecastData.list.filter((item: any) => getLocalDateString(item.dt) === dateStr);
 
         if (dayForecasts.length > 0) {
             const dayName = new Date(dayForecasts[0].dt * 1000).toLocaleDateString('en-US', { weekday: 'short' });
+
+            // Skip if we've already seen this day name (additional safety check)
+            if (seenDayNames.has(dayName)) {
+                return;
+            }
+            seenDayNames.add(dayName);
 
             // Find temperature around noon for a representative daily temp
             const noonForecast = dayForecasts.find((f: any) => new Date(f.dt * 1000).getUTCHours() >= 12) || dayForecasts[Math.floor(dayForecasts.length / 2)];

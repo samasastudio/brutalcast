@@ -48,9 +48,19 @@ export const WeatherLineChart: React.FC<WeatherLineChartProps> = ({ xAxisKey, yA
   // Actually, the set iteration order is insertion order, so if we flatMap in order, it should be roughly correct.
   // Better: Use the first city's forecast to define the order of days, as that's chronological.
   const referenceForecast = selectedCitiesData[0]?.forecast || [];
-  const orderedXValues = referenceForecast.map(f => f[xAxisKey]).slice(0, limitDays);
+  
+  // Deduplicate X values (e.g., day names) to prevent duplicates, then limit to limitDays
+  const seenXValues = new Set<string | number>();
+  const uniqueOrderedXValues = referenceForecast
+    .map(f => f[xAxisKey])
+    .filter(xValue => {
+      if (seenXValues.has(xValue)) return false;
+      seenXValues.add(xValue);
+      return true;
+    })
+    .slice(0, limitDays);
 
-  const chartData = orderedXValues.map(xValue => {
+  const chartData = uniqueOrderedXValues.map(xValue => {
     const dataPoint: any = { [xAxisKey]: xValue };
 
     selectedCitiesData.forEach(cityData => {

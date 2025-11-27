@@ -39,11 +39,63 @@ export const WeatherScatterChart: React.FC<WeatherScatterChartProps> = ({ xAxisK
           <ZAxis type="number" dataKey={zAxisKey} name={zAxisKey} range={[60, 400]} />
           <Tooltip 
             cursor={{ strokeDasharray: '3 3' }} 
-            contentStyle={{ backgroundColor: '#000', color: '#facc15', border: '2px solid #facc15', fontFamily: 'Roboto Mono' }}
-            formatter={(value: number, name: string) => [`${value} ${getUnitSymbol(name as keyof WeatherData)}`, name]}
+            contentStyle={{ 
+              backgroundColor: '#000', 
+              color: '#facc15', 
+              border: '2px solid #facc15', 
+              fontFamily: 'Roboto Mono',
+              padding: '12px',
+              fontSize: '14px',
+              fontWeight: '600'
+            }}
+            content={({ active, payload }) => {
+              if (!active || !payload || payload.length === 0) return null;
+              
+              // ScatterChart payload contains x, y, z values
+              const data = payload[0].payload as WeatherData;
+              const xValue = data[xAxisKey];
+              const yValue = data[yAxisKey];
+              const zValue = data[zAxisKey];
+              
+              // Convert values to displayable format (scatter charts only use numeric fields)
+              const formatValue = (val: unknown): string => {
+                if (typeof val === 'number') return String(val);
+                if (typeof val === 'string') return val;
+                // Fallback for edge cases
+                return String(val ?? 'N/A');
+              };
+              
+              const xDisplay = formatValue(xValue);
+              const yDisplay = formatValue(yValue);
+              const zDisplay = formatValue(zValue);
+              
+              return (
+                <div>
+                  <div style={{ 
+                    marginBottom: '8px', 
+                    borderBottom: '1px solid #facc15', 
+                    paddingBottom: '6px',
+                    fontWeight: 'bold',
+                    fontSize: '16px',
+                    color: '#fff'
+                  }}>
+                    {data.city}
+                  </div>
+                  <div style={{ marginBottom: '4px', color: '#facc15' }}>
+                    <strong>{String(xAxisKey)}:</strong> {xDisplay}{getUnitSymbol(xAxisKey)}
+                  </div>
+                  <div style={{ marginBottom: '4px', color: '#facc15' }}>
+                    <strong>{String(yAxisKey)}:</strong> {yDisplay}{getUnitSymbol(yAxisKey)}
+                  </div>
+                  <div style={{ color: '#facc15' }}>
+                    <strong>{String(zAxisKey)}:</strong> {zDisplay}{getUnitSymbol(zAxisKey)}
+                  </div>
+                </div>
+              );
+            }}
           />
           <Legend wrapperStyle={{ fontFamily: 'Roboto Mono' }} />
-          <Scatter name="Cities" data={allData} fill="#000" shape="circle" />
+          <Scatter name="Cities" data={allData} fill="#000" shape="circle" x={xAxisKey} y={yAxisKey} z={zAxisKey} />
         </ScatterChart>
       </ResponsiveContainer>
     </div>
