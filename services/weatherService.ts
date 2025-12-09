@@ -21,11 +21,6 @@ async function getWeatherForCity(city: string, unit: Unit, apiKey: string): Prom
     const currentWeatherData = await currentWeatherRes.json();
     const forecastData = await forecastRes.json();
 
-    console.log(`[OpenWeather] Response for ${city}:`, {
-        current: currentWeatherData,
-        forecast: forecastData
-    });
-
     // Fetch Air Quality Index (AQI)
     let aqi = 0;
     try {
@@ -33,7 +28,6 @@ async function getWeatherForCity(city: string, unit: Unit, apiKey: string): Prom
         const aqiRes = await fetch(`${baseUrl}/air_pollution?lat=${lat}&lon=${lon}&appid=${apiKey}`);
         if (aqiRes.ok) {
             const aqiData = await aqiRes.json();
-            console.log(`[OpenWeather] AQI data for ${city}:`, aqiData);
             if (aqiData.list && aqiData.list.length > 0) {
                 aqi = aqiData.list[0].main.aqi; // 1 = Good, 5 = Poor
             }
@@ -126,8 +120,6 @@ export const getWeatherForCities = async (cities: string[], unit: Unit, apiKey: 
         const originalCityName = cities.find(c => c.toLowerCase() === data.city.toLowerCase()) || data.city;
         weatherDataByCity[originalCityName] = data;
     });
-
-    console.log('[OpenWeather] Final processed weather data:', weatherDataByCity);
 
     return weatherDataByCity;
 };
