@@ -24,6 +24,7 @@ export interface WeatherData {
   lon: number;
   lat: number;
   forecast?: DailyForecast[];
+  aqi?: number;
 }
 
 export type UiComponentType = 'TABLE' | 'CARD' | 'BAR_CHART' | 'LINE_CHART' | 'SCATTER_CHART';

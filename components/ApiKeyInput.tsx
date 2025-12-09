@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useApiKeys } from '../context/ApiKeyContext';
 
 export const ApiKeyInput: React.FC = () => {
@@ -6,6 +6,15 @@ export const ApiKeyInput: React.FC = () => {
     const [geminiKeyInput, setGeminiKeyInput] = useState('');
     const [openWeatherKeyInput, setOpenWeatherKeyInput] = useState('');
     const [isSubmitting, setIsSubmitting] = useState(false);
+
+    useEffect(() => {
+        // Auto-populate from env vars if available
+        const envGeminiKey = import.meta.env.VITE_GEMINI_API_KEY || '';
+        const envOpenWeatherKey = import.meta.env.VITE_OPENWEATHER_API_KEY || '';
+        
+        if (envGeminiKey) setGeminiKeyInput(envGeminiKey);
+        if (envOpenWeatherKey) setOpenWeatherKeyInput(envOpenWeatherKey);
+    }, []);
 
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();

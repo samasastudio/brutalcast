@@ -21,6 +21,21 @@ async function getWeatherForCity(city: string, unit: Unit, apiKey: string): Prom
     const currentWeatherData = await currentWeatherRes.json();
     const forecastData = await forecastRes.json();
 
+    // Fetch Air Quality Index (AQI)
+    let aqi = 0;
+    try {
+        const { lat, lon } = currentWeatherData.coord;
+        const aqiRes = await fetch(`${baseUrl}/air_pollution?lat=${lat}&lon=${lon}&appid=${apiKey}`);
+        if (aqiRes.ok) {
+            const aqiData = await aqiRes.json();
+            if (aqiData.list && aqiData.list.length > 0) {
+                aqi = aqiData.list[0].main.aqi; // 1 = Good, 5 = Poor
+            }
+        }
+    } catch (err) {
+        console.warn(`Could not fetch AQI for ${city}`, err);
+    }
+
     // Process forecast data to get daily summaries for the next 5 unique days
     const dailyForecasts: DailyForecast[] = [];
     const seenDayNames = new Set<string>(); // Track day names to prevent duplicates
@@ -84,6 +99,7 @@ async function getWeatherForCity(city: string, unit: Unit, apiKey: string): Prom
         lon: currentWeatherData.coord.lon,
         lat: currentWeatherData.coord.lat,
         forecast: dailyForecasts,
+        aqi: aqi,
     };
 }
 

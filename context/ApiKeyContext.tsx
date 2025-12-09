@@ -16,6 +16,18 @@ export const ApiKeyProvider: React.FC<{ children: ReactNode }> = ({ children }) 
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
+    // Check env vars first for demo mode
+    const envGeminiKey = import.meta.env.VITE_GEMINI_API_KEY || '';
+    const envOpenWeatherKey = import.meta.env.VITE_OPENWEATHER_API_KEY || '';
+    
+    if (envGeminiKey && envOpenWeatherKey) {
+      setGeminiKeyState(envGeminiKey);
+      setOpenWeatherKeyState(envOpenWeatherKey);
+      setIsLoading(false);
+      return;
+    }
+
+    // Fall back to localStorage
     const storedGeminiKey = localStorage.getItem('brutalcast_gemini_key');
     const storedOpenWeatherKey = localStorage.getItem('brutalcast_openweather_key');
 

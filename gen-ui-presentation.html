@@ -1,0 +1,820 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Generative UI - Engineering Deep Dive</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Urbanist:wght@400;500;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <style>
+/* 1. THE SETUP */
+* {
+  box-sizing: border-box;
+}
+
+body {
+  background-color: #1a1a1a;
+  display: grid;
+  gap: 20px;
+  grid-template-columns: 1fr;
+  margin: 0;
+  min-height: 100vh;
+  padding: 20px 0;
+  place-items: center;
+  font-family: 'Urbanist', sans-serif;
+}
+
+.slide-container {
+  align-items: center;
+  background-color: #0f172a; /* Deep tech blue/black */
+  border-radius: 16px;
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.4);
+  display: none;
+  flex-direction: column;
+  height: 720px;
+  justify-content: center;
+  overflow: hidden;
+  padding: 60px;
+  position: relative;
+  width: 1280px;
+  color: #f8fafc;
+}
+
+.slide-container.active {
+  display: flex;
+}
+
+.slide-controls {
+  position: fixed;
+  bottom: 30px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  gap: 20px;
+  align-items: center;
+  background: rgba(30, 41, 59, 0.9);
+  padding: 15px 30px;
+  border-radius: 50px;
+  border: 1px solid #334155;
+  z-index: 1000;
+  backdrop-filter: blur(10px);
+}
+
+.slide-controls button {
+  background: #334155;
+  border: 1px solid #475569;
+  border-radius: 50%;
+  width: 50px;
+  height: 50px;
+  color: #f8fafc;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s;
+  font-size: 20px;
+}
+
+.slide-controls button:hover {
+  background: #38bdf8;
+  border-color: #38bdf8;
+}
+
+.slide-controls button:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+}
+
+.slide-controls button:disabled:hover {
+  background: #334155;
+  border-color: #475569;
+}
+
+.slide-counter {
+  color: #cbd5e1;
+  font-size: 16px;
+  font-weight: 500;
+  min-width: 80px;
+  text-align: center;
+}
+
+/* Background Accents */
+.slide-container::before {
+  content: '';
+  position: absolute;
+  top: -50%;
+  left: -20%;
+  width: 800px;
+  height: 800px;
+  background: radial-gradient(circle, rgba(56, 189, 248, 0.1) 0%, rgba(15, 23, 42, 0) 70%);
+  z-index: 0;
+}
+
+.slide-container::after {
+  content: '';
+  position: absolute;
+  bottom: -30%;
+  right: -10%;
+  width: 600px;
+  height: 600px;
+  background: radial-gradient(circle, rgba(139, 92, 246, 0.1) 0%, rgba(15, 23, 42, 0) 70%);
+  z-index: 0;
+}
+
+.slide-container > * {
+  position: relative;
+  z-index: 1;
+}
+
+/* 2. TYPOGRAPHY */
+h1, h2, h3 {
+  font-weight: 700;
+  margin: 0;
+  color: #f1f5f9;
+}
+
+h1 { font-size: 72px; line-height: 1.1; letter-spacing: -1px; }
+h2 { font-size: 56px; margin-bottom: 40px; }
+h3 { font-size: 32px; color: #38bdf8; margin-bottom: 16px; }
+p, li { font-size: 20px; line-height: 1.6; color: #cbd5e1; }
+
+.slide-title {
+  width: 100%;
+  text-align: left;
+  border-bottom: 2px solid rgba(56, 189, 248, 0.3);
+  padding-bottom: 20px;
+  margin-bottom: 40px;
+}
+
+/* Code Snippet Styling */
+.code-block {
+  background-color: #1e293b;
+  border-radius: 12px;
+  border: 1px solid #334155;
+  padding: 32px;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 19px;
+  line-height: 1.6;
+  color: #e2e8f0;
+  width: 100%;
+  overflow-x: auto;
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.3);
+  white-space: pre;
+}
+
+.keyword { color: #c084fc; font-weight: 500; } /* Purple */
+.string { color: #86efac; } /* Green */
+.prop { color: #7dd3fc; } /* Blue */
+.comment { color: #64748b; font-style: italic; }
+.function { color: #fcd34d; } /* Yellow */
+.type { color: #fca5a5; } /* Red/Pink */
+
+/* 3. LAYOUTS */
+.content-area {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  flex-grow: 1;
+  justify-content: center;
+}
+
+/* Two Column */
+.two-column {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 60px;
+  width: 100%;
+  align-items: center;
+}
+
+.two-column.tiled > div {
+  background: #1e293b;
+  padding: 40px;
+  border-radius: 12px;
+  border: 1px solid #334155;
+  height: 100%;
+}
+
+/* Timeline */
+.timeline-layout {
+  display: flex;
+  justify-content: space-between;
+  position: relative;
+  margin-top: 40px;
+}
+.timeline-layout::before {
+  content: '';
+  position: absolute;
+  top: 40px;
+  left: 0;
+  width: 100%;
+  height: 4px;
+  background: #334155;
+  z-index: 0;
+}
+.timeline-item {
+  position: relative;
+  width: 18%;
+  text-align: center;
+  z-index: 1;
+}
+.timeline-dot {
+  width: 24px;
+  height: 24px;
+  background: #38bdf8;
+  border-radius: 50%;
+  margin: 28px auto 20px;
+  box-shadow: 0 0 0 8px #0f172a;
+}
+.timeline-item h4 {
+  color: #f1f5f9;
+  font-size: 20px;
+  margin-bottom: 8px;
+}
+.timeline-item p {
+  font-size: 16px;
+  color: #94a3b8;
+}
+
+/* Section Title */
+.section-title-layout {
+  text-align: center;
+}
+.section-title-layout hr {
+  width: 100px;
+  border: 2px solid #38bdf8;
+  margin: 0 auto 30px;
+}
+
+/* Highlighted Numbers */
+.highlight-numbers-layout {
+  display: flex;
+  justify-content: space-around;
+  width: 100%;
+  text-align: center;
+}
+.number-item .number {
+  font-size: 100px;
+  font-weight: 700;
+  color: #38bdf8;
+  line-height: 1;
+  margin-bottom: 10px;
+}
+.number-item .label {
+  font-size: 24px;
+  color: #cbd5e1;
+}
+
+/* Tiles with Icons */
+.tiled-content {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 30px;
+  width: 100%;
+}
+.tile {
+  background: #1e293b;
+  padding: 30px;
+  border-radius: 12px;
+  text-align: center;
+  border: 1px solid #334155;
+}
+.tile i {
+  font-size: 40px;
+  color: #a78bfa;
+  margin-bottom: 20px;
+}
+
+ul { padding-left: 20px; }
+li { margin-bottom: 12px; }
+
+/* 4. CUSTOM DIAGRAMS */
+.concept-diagram {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 20px;
+    height: 100%;
+    background: #1e293b;
+    border-radius: 16px;
+    border: 1px solid #334155;
+    padding: 30px;
+}
+.concept-node {
+    background: #334155;
+    border-radius: 12px;
+    padding: 20px;
+    text-align: center;
+    width: 120px;
+    border: 1px solid #475569;
+}
+.concept-node i { font-size: 32px; color: #cbd5e1; margin-bottom: 10px; }
+.concept-node span { display: block; font-size: 16px; font-weight: 700; color: #f8fafc; }
+.concept-arrow { color: #38bdf8; font-size: 24px; }
+
+.phone-mockup-container {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 100%;
+}
+.phone-body {
+    width: 280px;
+    height: 520px;
+    background: #0f172a;
+    border: 8px solid #334155;
+    border-radius: 36px;
+    padding: 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+}
+.mock-weather-card {
+    background: linear-gradient(135deg, #3b82f6, #6366f1);
+    border-radius: 16px;
+    padding: 20px;
+    color: white;
+    text-align: center;
+}
+.mock-list-item {
+    background: #1e293b;
+    border-radius: 8px;
+    height: 40px;
+    width: 100%;
+}
+.mock-chart-area {
+    background: #1e293b;
+    border-radius: 8px;
+    flex-grow: 1;
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-around;
+    padding: 10px;
+}
+.mock-bar { background: #38bdf8; width: 20px; border-radius: 4px 4px 0 0; }
+
+.parallel-flow {
+    display: grid;
+    grid-template-rows: 1fr 1fr;
+    gap: 20px;
+    position: relative;
+    padding: 20px 0;
+}
+.flow-track {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+    background: #1e293b;
+    padding: 20px;
+    border-radius: 12px;
+    border: 1px solid #334155;
+}
+.track-label { width: 100px; font-weight: bold; color: #94a3b8; font-size: 14px; text-transform: uppercase; }
+.track-bar { flex-grow: 1; height: 12px; border-radius: 6px; position: relative; overflow: hidden; }
+.track-bar.data { background: #34d399; width: 60%; }
+.track-bar.llm { background: #a78bfa; width: 100%; }
+
+    </style>
+</head>
+<body>
+
+<!-- Slide 1: Title Slide -->
+<div class="slide-container" id="slide1" style="background: radial-gradient(circle at 50% 50%, #1e293b 0%, #0f172a 100%);">
+    <div style="text-align: center; z-index: 2;">
+        <div style="font-size: 120px; color: #38bdf8; margin-bottom: 20px;"><i class="fa-solid fa-microchip"></i></div>
+        <h1>GENERATIVE UI</h1>
+        <p style="font-size: 28px; color: #e2e8f0; margin-top: 20px;">Building Dynamic Interfaces with AI</p>
+        <p style="font-size: 18px; color: #94a3b8; margin-top: 40px; text-transform: uppercase; letter-spacing: 2px;">Engineering Deep-Dive</p>
+    </div>
+</div>
+
+<!-- Slide 2: Core Concept -->
+<div class="slide-container" id="slide2">
+    <h2 class="slide-title">What is Generative UI?</h2>
+    <div class="content-area">
+        <div class="two-column">
+            <div>
+                 <ul style="list-style: none; padding: 0;">
+                    <li style="margin-bottom: 30px;">
+                        <h3 style="margin-bottom: 10px; color: #38bdf8;"><i class="fa-solid fa-crosshairs" style="margin-right: 10px;"></i>Intent-Based</h3>
+                        <p>Interfaces generated in real-time response to user needs. The system adapts to the question, not the other way around.</p>
+                    </li>
+                    <li style="margin-bottom: 30px;">
+                        <h3 style="margin-bottom: 10px; color: #a78bfa;"><i class="fa-solid fa-cubes-stacked" style="margin-right: 10px;"></i>Component-Driven</h3>
+                        <p>AI orchestrates a trusted Design System, assembling pre-built, tested components into new layouts.</p>
+                    </li>
+                    <li>
+                        <h3 style="margin-bottom: 10px; color: #34d399;"><i class="fa-solid fa-stopwatch" style="margin-right: 10px;"></i>Ephemeral</h3>
+                        <p>The interface is transient. It exists only to answer a specific query, then disappears.</p>
+                    </li>
+                </ul>
+            </div>
+            <div class="concept-diagram">
+                <div class="concept-node">
+                    <i class="fa-solid fa-user"></i>
+                    <span>User Input</span>
+                </div>
+                <div class="concept-arrow"><i class="fa-solid fa-arrow-right"></i></div>
+                <div class="concept-node" style="border-color: #a78bfa;">
+                    <i class="fa-solid fa-wand-magic-sparkles" style="color: #a78bfa;"></i>
+                    <span>LLM Plan</span>
+                </div>
+                <div class="concept-arrow"><i class="fa-solid fa-arrow-right"></i></div>
+                <div class="concept-node" style="border-color: #38bdf8;">
+                    <i class="fa-solid fa-table-columns" style="color: #38bdf8;"></i>
+                    <span>Custom UI</span>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Slide 3: Case Study -->
+<div class="slide-container" id="slide3">
+    <h2 class="slide-title">Case Study: BrutalCast</h2>
+    <div class="content-area">
+        <div class="two-column">
+            <div>
+                <h3>AI-Powered Weather</h3>
+                <p>A proof-of-concept application that moves away from the "everything dashboard" to intent-based rendering.</p>
+                <br>
+                <h3>Tech Stack</h3>
+                <ul style="list-style: none; padding: 0;">
+                    <li><i class="fa-brands fa-react" style="color: #61dafb; width: 30px;"></i> React + TypeScript + Vite</li>
+                    <li><i class="fa-brands fa-google" style="color: #ea4335; width: 30px;"></i> Google Gemini API (Orchestration)</li>
+                    <li><i class="fa-solid fa-bolt" style="color: #f59e0b; width: 30px;"></i> Vercel SDK (Streaming)</li>
+                </ul>
+            </div>
+            <div class="phone-mockup-container">
+                <div class="phone-body">
+                    <div style="text-align: center; color: #94a3b8; font-size: 12px; margin-bottom: 10px;">brutalcast.app</div>
+                    <div class="mock-weather-card">
+                        <i class="fa-solid fa-cloud-sun" style="font-size: 40px; margin-bottom: 10px;"></i>
+                        <div style="font-size: 24px; font-weight: bold;">Austin, TX</div>
+                        <div style="font-size: 48px; font-weight: bold;">85°</div>
+                    </div>
+                    <div class="mock-list-item"></div>
+                    <div class="mock-list-item"></div>
+                    <div class="mock-chart-area">
+                        <div class="mock-bar" style="height: 40%;"></div>
+                        <div class="mock-bar" style="height: 60%;"></div>
+                        <div class="mock-bar" style="height: 30%;"></div>
+                        <div class="mock-bar" style="height: 80%;"></div>
+                        <div class="mock-bar" style="height: 50%;"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Slide 4: Demo Transition -->
+<div class="slide-container" id="slide4">
+    <div class="section-title-layout">
+        <hr>
+        <h2>Live Demo</h2>
+        <p>From prompt to pixels in real-time.</p>
+    </div>
+</div>
+
+<!-- Slide 5: Architecture Overview -->
+<div class="slide-container" id="slide5">
+    <h2 class="slide-title">The Architecture</h2>
+    <div class="content-area">
+        <div class="timeline-layout">
+            <div class="timeline-item">
+                <div class="timeline-dot"></div>
+                <h4>1. Input</h4>
+                <p>User Intent</p>
+            </div>
+            <div class="timeline-item">
+                <div class="timeline-dot"></div>
+                <h4>2. Fetch</h4>
+                <p>Parallel Data</p>
+            </div>
+            <div class="timeline-item">
+                <div class="timeline-dot"></div>
+                <h4>3. Plan</h4>
+                <p>LLM Schema</p>
+            </div>
+            <div class="timeline-item">
+                <div class="timeline-dot"></div>
+                <h4>4. Router</h4>
+                <p>Component Map</p>
+            </div>
+            <div class="timeline-item">
+                <div class="timeline-dot"></div>
+                <h4>5. Render</h4>
+                <p>React Output</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Slide 6: Intent & Data -->
+<div class="slide-container" id="slide6">
+    <h2 class="slide-title">Steps 1 & 2:<br>Intent & Data</h2>
+    <div class="content-area">
+        <div class="two-column">
+            <div>
+                <h3>Parallel Execution is Key</h3>
+                <p><strong>Don't wait for the LLM.</strong> Latency is the enemy. We extract entities immediately and fetch data in parallel with the LLM planning phase.</p>
+                <br>
+                <div class="code-block"><span class="keyword">const</span> [weather, plan] = <span class="keyword">await</span> Promise.all([
+  <span class="comment">// 1. Fetch raw JSON data</span>
+  <span class="function">fetchWeather</span>(cities),
+
+  <span class="comment">// 2. Start LLM thinking</span>
+  <span class="function">generateUIPlan</span>(prompt)
+]);</div>
+            </div>
+            <div class="parallel-flow">
+                <div class="flow-track">
+                    <div class="track-label">API Data</div>
+                    <div class="track-bar data"></div>
+                    <div style="color: #34d399; font-weight: bold;"><i class="fa-solid fa-check"></i> Ready</div>
+                </div>
+                <div class="flow-track">
+                    <div class="track-label">LLM Plan</div>
+                    <div class="track-bar llm">
+                        <i class="fa-solid fa-spinner fa-spin" style="position: absolute; right: 10px; top: 50%; transform: translateY(-50%); color: rgba(255,255,255,0.5);"></i>
+                    </div>
+                </div>
+                <div style="position: absolute; right: -20px; top: 50%; transform: translateY(-50%); font-size: 24px; color: #cbd5e1;">
+                    <i class="fa-solid fa-code-merge"></i>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Slide 7: Prompt Strategy -->
+<div class="slide-container" id="slide7">
+    <h2 class="slide-title">Step 3: The Prompt Strategy</h2>
+    <div class="content-area">
+        <div class="two-column">
+            <div>
+                <h3>We Don't Generate HTML</h3>
+                <p>Generating raw HTML is risky and unmaintainable. Instead, we ask the LLM to generate a <strong>Plan</strong> using a strict component registry.</p>
+                <p>We feed the prompt three key things:</p>
+                <ul>
+                    <li><strong>Role:</strong> "You are a UI Generator."</li>
+                    <li><strong>Registry:</strong> List of valid components.</li>
+                    <li><strong>Context:</strong> The raw data we just fetched.</li>
+                </ul>
+            </div>
+            <div class="code-block"><span class="comment">// System Prompt</span>
+You are a UI generator.
+
+<span class="keyword">const</span> AVAILABLE_COMPONENTS = [
+  <span class="string">'BAR_CHART'</span>,
+  <span class="string">'WEATHER_CARD'</span>,
+  <span class="string">'ALERT_BANNER'</span>
+];
+
+<span class="comment">// Constraints</span>
+1. Return ONLY JSON.
+2. Do not hallucinate props.
+3. Use the provided data context.</div>
+        </div>
+    </div>
+</div>
+
+<!-- Slide 8: Schema & Validation (New) -->
+<div class="slide-container" id="slide8">
+    <h2 class="slide-title">Step 3b: The Schema Contract</h2>
+    <div class="content-area">
+        <div class="two-column">
+            <div>
+                <h3>1. Define & Inject</h3>
+                <p>We use <strong>Zod</strong> to define the strict shape of our UI. This schema is converted to JSON and fed to the LLM as the "ground truth."</p>
+                <div class="code-block" style="font-size: 16px;">
+<span class="keyword">import</span> { z } <span class="keyword">from</span> <span class="string">"zod"</span>;
+
+<span class="keyword">const</span> PlanSchema = z.object({
+  layout: z.enum([<span class="string">"row"</span>, <span class="string">"grid"</span>]),
+  components: z.array(z.object({
+    type: z.enum([<span class="string">"BAR_CHART"</span>, <span class="string">"CARD"</span>]),
+    props: z.record(z.any())
+  }))
+});</div>
+            </div>
+            <div>
+                <h3>2. Validate Output</h3>
+                <p>We never trust the AI blindly. We parse the output against our schema to catch hallucinations before they break the UI.</p>
+                <div class="code-block" style="font-size: 16px;">
+<span class="keyword">const</span> raw = <span class="keyword">await</span> llm.generate(prompt);
+<span class="keyword">const</span> result = PlanSchema.safeParse(raw);
+
+<span class="keyword">if</span> (!result.success) {
+  <span class="comment">// Fallback or Retry</span>
+  <span class="keyword">return</span> <span class="keyword">&lt;ErrorUI /&gt;</span>;
+}</div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Slide 9: The Response -->
+<div class="slide-container" id="slide9">
+    <h2 class="slide-title">Step 4: The LLM Response</h2>
+    <div class="content-area">
+        <div class="two-column">
+            <div class="code-block">{
+  <span class="prop">"layout"</span>: <span class="string">"comparison_view"</span>,
+  <span class="prop">"components"</span>: [
+    {
+      <span class="prop">"type"</span>: <span class="string">"BAR_CHART"</span>,
+      <span class="prop">"props"</span>: {
+        <span class="prop">"title"</span>: <span class="string">"Temp Comparison"</span>,
+        <span class="prop">"data"</span>: [
+          { <span class="prop">"city"</span>: <span class="string">"Austin"</span>, <span class="prop">"val"</span>: 85 },
+          { <span class="prop">"city"</span>: <span class="string">"London"</span>, <span class="prop">"val"</span>: 62 }
+        ]
+      }
+    }
+  ]
+}</div>
+            <div>
+                <h3>Structured Output</h3>
+                <p>The LLM returns a clean JSON object. It selects the <code>BAR_CHART</code> component because the user's intent was to "compare".</p>
+                <p>It automatically maps the raw weather data into the <code>props</code> structure required by our chart component.</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Slide 10: Component Router -->
+<div class="slide-container" id="slide10">
+    <h2 class="slide-title">Step 5: Component Router</h2>
+    <div class="content-area">
+        <div class="two-column">
+            <div>
+                <h3>The Safety Layer</h3>
+                <p>This is where the magic happens. We map the JSON plan to actual, compiled React components.</p>
+                <p>This ensures <strong>Type Safety</strong> and <strong>Design Consistency</strong>. The LLM creates the structure; our code handles the rendering.</p>
+            </div>
+            <div class="code-block"><span class="keyword">const</span> COMPONENT_MAP = {
+  BAR_CHART: <span class="function">dynamic</span>(() => <span class="keyword">import</span>(<span class="string">'./BarChart'</span>)),
+  WEATHER_CARD: <span class="function">dynamic</span>(() => <span class="keyword">import</span>(<span class="string">'./Card'</span>))
+};
+
+<span class="keyword">export function</span> <span class="function">RenderPlan</span>({ plan }) {
+  <span class="keyword">return</span> plan.components.map(comp => {
+    <span class="keyword">const</span> Component = COMPONENT_MAP[comp.type];
+    <span class="keyword">return</span> <span class="keyword">&lt;Component</span> {...comp.props} <span class="keyword">/&gt;</span>;
+  });
+}</div>
+        </div>
+    </div>
+</div>
+
+<!-- Slide 11: Challenges -->
+<div class="slide-container" id="slide11">
+    <h2 class="slide-title">Trade-offs & Mitigations</h2>
+    <div class="content-area">
+        <div class="two-column tiled">
+            <div>
+                <h3 style="color: #f87171;"><i class="fa-solid fa-triangle-exclamation"></i> Challenges</h3>
+                <ul>
+                    <li><strong>Latency:</strong> LLM inference adds 1-3s overhead.</li>
+                    <li><strong>Determinism:</strong> AI might pick the wrong chart.</li>
+                    <li><strong>Security:</strong> Injection attacks via props.</li>
+                </ul>
+            </div>
+            <div>
+                <h3 style="color: #4ade80;"><i class="fa-solid fa-shield-halved"></i> Mitigations</h3>
+                <ul>
+                    <li><strong>Streaming:</strong> Show skeleton UI immediately.</li>
+                    <li><strong>Zod Schema:</strong> Strictly validate JSON output.</li>
+                    <li><strong>Whitelisting:</strong> Only allow registered components.</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Slide 12: Strategic Benefits -->
+<div class="slide-container" id="slide12">
+    <h2 class="slide-title">Strategic Value</h2>
+    <div class="content-area">
+        <div class="tiled-content">
+            <div class="tile">
+                <i class="fa-solid fa-bolt"></i>
+                <h3>Engineering Velocity</h3>
+                <p>Shift focus from building single-purpose pages to building capabilities. The UI constructs itself based on the data available.</p>
+            </div>
+            <div class="tile">
+                <i class="fa-solid fa-bullseye"></i>
+                <h3>Adaptability</h3>
+                <p>The interface adapts to user context automatically. "Show me high-priority alerts" renders a different view than "Show me historical trends."</p>
+            </div>
+            <div class="tile">
+                <i class="fa-solid fa-screwdriver-wrench"></i>
+                <h3>Maintenance</h3>
+                <p>Logic lives in the orchestration layer, not the view layer. You maintain a stable set of dumb components while the AI handles the glue code.</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Slide 13: Use Cases -->
+<div class="slide-container" id="slide13">
+    <h2 class="slide-title">Real-World Use Cases</h2>
+    <div class="content-area">
+        <div class="tiled-content">
+            <div class="tile">
+                <i class="fa-solid fa-chart-line"></i>
+                <h3>Analytics</h3>
+                <p>Self-serve BI. "Show me Q3 sales vs Q4."</p>
+            </div>
+            <div class="tile">
+                <i class="fa-solid fa-headset"></i>
+                <h3>Support</h3>
+                <p>Context-aware panels for support agents.</p>
+            </div>
+            <div class="tile">
+                <i class="fa-solid fa-database"></i>
+                <h3>Admin Panels</h3>
+                <p>Auto-generated forms for complex data models.</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Slide 14: Q&A -->
+<div class="slide-container" id="slide14">
+    <div class="section-title-layout">
+        <h2 style="font-size: 80px;">Questions?</h2>
+        <p>Repo: github.com/samasastudio/brutalcast</p>
+        <div style="margin-top: 40px; display: flex; justify-content: center; gap: 20px;">
+            <i class="fa-brands fa-github" style="font-size: 30px; color: #94a3b8;"></i>
+            <i class="fa-brands fa-linkedin" style="font-size: 30px; color: #94a3b8;"></i>
+            <i class="fa-brands fa-twitter" style="font-size: 30px; color: #94a3b8;"></i>
+        </div>
+    </div>
+</div>
+
+<!-- Slide Controls -->
+<div class="slide-controls">
+    <button id="prevBtn" onclick="changeSlide(-1)">
+        <i class="fa-solid fa-chevron-left"></i>
+    </button>
+    <span class="slide-counter">
+        <span id="currentSlide">1</span> / <span id="totalSlides">14</span>
+    </span>
+    <button id="nextBtn" onclick="changeSlide(1)">
+        <i class="fa-solid fa-chevron-right"></i>
+    </button>
+</div>
+
+<script>
+let currentSlide = 1;
+const totalSlides = 14;
+
+function showSlide(n) {
+    const slides = document.querySelectorAll('.slide-container');
+    
+    if (n > totalSlides) currentSlide = totalSlides;
+    if (n < 1) currentSlide = 1;
+    else currentSlide = n;
+    
+    slides.forEach(slide => slide.classList.remove('active'));
+    slides[currentSlide - 1].classList.add('active');
+    
+    document.getElementById('currentSlide').textContent = currentSlide;
+    
+    document.getElementById('prevBtn').disabled = currentSlide === 1;
+    document.getElementById('nextBtn').disabled = currentSlide === totalSlides;
+}
+
+function changeSlide(direction) {
+    showSlide(currentSlide + direction);
+}
+
+// Keyboard navigation
+document.addEventListener('keydown', (e) => {
+    if (e.key === 'ArrowRight' || e.key === ' ') {
+        e.preventDefault();
+        changeSlide(1);
+    } else if (e.key === 'ArrowLeft') {
+        e.preventDefault();
+        changeSlide(-1);
+    } else if (e.key === 'Home') {
+        e.preventDefault();
+        showSlide(1);
+    } else if (e.key === 'End') {
+        e.preventDefault();
+        showSlide(totalSlides);
+    }
+});
+
+// Initialize
+showSlide(1);
+</script>
+
+</body>
+</html>

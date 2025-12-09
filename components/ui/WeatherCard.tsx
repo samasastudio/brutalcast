@@ -31,6 +31,7 @@ export const WeatherCard: React.FC<WeatherCardProps> = ({ cities, allData, unit 
             <span>Humidity: {data.humidity}%</span>
             <span>Wind: {data.wind_speed} {windUnit}</span>
             <span>Pressure: {data.pressure} hPa</span>
+            {data.aqi && <span>AQI: {data.aqi}</span>}
           </div>
         </div>
       ))}
