@@ -38,7 +38,7 @@ const uiGenerationSchema = {
                             },
                             dataKeys: {
                                 type: Type.ARRAY,
-                                description: "An array of data keys (e.g., 'temp', 'humidity') to be plotted or displayed. Used by TABLE, BAR_CHART.",
+                                description: "An array of data keys (e.g., 'temp', 'humidity', 'aqi', 'chance_of_rain') to be plotted or displayed. Used by TABLE, BAR_CHART, and CARD. For CARD, only show the fields specified in dataKeys. For chance_of_rain, use the forecast data.",
                                 items: { type: Type.STRING }
                             },
                             xAxisKey: {
@@ -116,6 +116,12 @@ export async function generateUiLayout(weatherData: Record<string, WeatherData>,
         * yAxisKey: the metric they requested (e.g., "chance_of_rain", "temp", "humidity")
         * cities: include ALL cities from the weather data
       - Example: "line chart of chance of rain" → LINE_CHART with xAxisKey="day", yAxisKey="chance_of_rain", cities=[all cities]
+      
+      SPECIAL INSTRUCTIONS FOR CARD REQUESTS:
+      - If the user requests cards showing specific fields (e.g., "cards showing air quality and humidity"), you MUST include a 'dataKeys' array with ONLY those fields.
+      - Example: "cards showing air quality and humidity" → CARD with dataKeys=["aqi", "humidity"], cities=[all cities]
+      - Example: "cards showing chance of rain" → CARD with dataKeys=["chance_of_rain"], cities=[all cities]
+      - Do NOT include fields that were not requested. If the user asks for specific fields, only show those fields.
     `;
     } else {
         generationInstructions = `
@@ -159,11 +165,15 @@ export async function generateUiLayout(weatherData: Record<string, WeatherData>,
       * 'yAxisKey': One of 'temp', 'humidity', or 'chance_of_rain' from the forecast data
       * 'cities': Array of city names to include in the chart
       * Do NOT use 'dataKeys' for LINE_CHART. The forecast data structure is: { day: string, temp: number, humidity: number, chance_of_rain: number }
-    - TABLE/CARD: Use 'cities' to select which cities to display. For TABLE, also provide 'dataKeys'.
+    - TABLE/CARD: Use 'cities' to select which cities to display. For both TABLE and CARD, provide 'dataKeys' to specify which fields to show. 
+      * For CARD: Only display the fields specified in dataKeys - do not show all fields. If the user requests "chance of rain", include 'chance_of_rain' in dataKeys (this comes from the forecast data, specifically the first forecast day).
+      * For TABLE: Provide dataKeys to specify which columns to display.
 
     Weather Data:
     ${weatherDataString}
   `;
+
+    console.log('[LLM] Prompt being sent to Gemini:', prompt);
 
     try {
         // Create a deep copy of the schema and sanitize all string descriptions

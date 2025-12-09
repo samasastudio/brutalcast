@@ -36,6 +36,7 @@ export interface TableProps {
 
 export interface CardProps {
   cities: string[];
+  dataKeys?: (keyof WeatherData | 'chance_of_rain')[];
 }
 
 export interface BarChartProps {
