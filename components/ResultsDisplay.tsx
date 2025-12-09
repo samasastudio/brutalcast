@@ -21,6 +21,17 @@ const BrutalistContainer: React.FC<{ children: React.ReactNode; className?: stri
 
 export const ResultsDisplay: React.FC<ResultsDisplayProps> = ({ weatherData, layout, imageUrl, unit }) => {
 
+  /* ============================================
+     PRESENTATION MARKER #5: COMPONENT ROUTER
+     ============================================
+     This is the component router that maps the LLM's plan
+     to actual React components. Based on the component type
+     in the plan (TABLE, CARD, BAR_CHART, etc.), it renders
+     the corresponding component with the props specified
+     in the LLM's response. This ensures type safety and
+     design consistency - the LLM creates the structure,
+     our code handles the rendering.
+  */
   const renderUiComponent = (config: UiComponentConfig) => {
     const allCitiesData = Object.values(weatherData);
 

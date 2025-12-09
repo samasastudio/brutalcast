@@ -37,6 +37,12 @@ export const SearchForm: React.FC<SearchFormProps> = ({ onSearch, isLoading }) =
         </div>
 
         <div>
+           {/* ============================================
+               PRESENTATION MARKER #1: USER PROMPT INPUT
+               ============================================
+               This is where the user inputs their desired layout prompt.
+               The prompt is captured here and passed to the LLM later.
+           */}
            <label htmlFor="prompt-input" className="block text-sm font-bold mb-1 text-gray-700">2. Describe Your Desired Layout (Optional)</label>
            <textarea
             id="prompt-input"

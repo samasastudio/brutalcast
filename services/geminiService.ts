@@ -133,6 +133,16 @@ export async function generateUiLayout(weatherData: Record<string, WeatherData>,
     `;
     }
 
+    /* ============================================
+       PRESENTATION MARKER #3: LLM INPUT PROMPT
+       ============================================
+       This is the complete prompt sent to the LLM. It includes:
+       - The user's layout request
+       - The weather data (JSON)
+       - The schema definition (responseSchema)
+       - Component-specific rules and constraints
+       - Unit system instructions
+    */
     const prompt = `
     Analyze the following weather data for several cities and generate a UI layout configuration.
     Your response MUST be a valid JSON object matching the provided schema.
@@ -228,6 +238,17 @@ export async function generateUiLayout(weatherData: Record<string, WeatherData>,
             throw new Error("AI returned an invalid response structure");
         }
 
+        /* ============================================
+           PRESENTATION MARKER #4: LLM PLAN RESPONSE
+           ============================================
+           This is where we receive the LLM's plan response.
+           The response is a JSON object containing:
+           - blurb: A witty summary
+           - imagePrompt: Description for image generation
+           - uiComponents: Array of component configurations
+           Each component has a type, title, and props that define
+           how to render it (cities, dataKeys, axis keys, etc.)
+        */
         const jsonText = response.text.trim();
         console.log("Raw AI response:", jsonText);
         

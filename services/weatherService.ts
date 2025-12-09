@@ -103,6 +103,13 @@ async function getWeatherForCity(city: string, unit: Unit, apiKey: string): Prom
     };
 }
 
+/* ============================================
+   PRESENTATION MARKER #2: FETCH OPENWEATHER DATA
+   ============================================
+   This function fetches weather data from the OpenWeather API
+   for all requested cities in parallel. The data includes current
+   weather, forecast, and air quality information.
+*/
 export const getWeatherForCities = async (cities: string[], unit: Unit, apiKey: string): Promise<Record<string, WeatherData>> => {
     if (!apiKey) {
         throw new Error("OpenWeather API key is not configured.");
