@@ -1,18 +1,9 @@
 import { GoogleGenAI, Type } from "@google/genai";
 import type { WeatherData, GeneratedLayout, Unit } from '../types';
-
-const getCharReplacement = (char: string): string => {
-    const replacements = new Map([
-        ['°', ' degrees '],
-        ['–', '-'],
-        ['—', '-'],
-        ['"', '"'],
-        ['"', '"'],
-        ["'", "'"],
-        ["'", "'"],
-    ]);
-    return replacements.get(char) || '';
-};
+import { getCharReplacement } from '../helpers/textSanitization';
+import { sanitizeSchema } from '../helpers/schemaSanitization';
+import { getGenerationInstructions } from '../helpers/promptGeneration';
+import { parseLayout, validateLineChartComponent } from '../helpers/layoutValidation';
 
 const uiGenerationSchema = {
     type: Type.OBJECT,
@@ -100,39 +91,6 @@ export async function generateUiLayout(weatherData: Record<string, WeatherData>,
     - For 'metric' units, temperature is in Celsius (C) and wind speed is in meters per second (m/s).
     IMPORTANT: Please ensure that any titles or labels you generate for the UI components reflect this. For example, a chart title should be 'Temperature Comparison (F)' if the unit is imperial.
   `;
-
-    const getGenerationInstructions = (prompt: string): string => {
-        if (!prompt.trim()) {
-            return `
-      The user has not specified a layout. Please generate a diverse and interesting layout automatically.
-      Your response should include 3 to 5 different UI components to compare the weather data in interesting ways.
-      - For charts, choose data keys that make for an interesting comparison.
-      - For tables, select a few key columns.
-      - For cards, select a few cities to highlight. Ensure the 'cities' prop is an array of city name strings.
-    `;
-        }
-        
-        return `
-      The user has provided a specific request for the UI layout.
-      IMPORTANT: You MUST generate ONLY the components described in the user's request. Do NOT add any extra components.
-      Fulfill their request as accurately as possible.
-      
-      User's request: "${prompt}"
-      
-      SPECIAL INSTRUCTIONS FOR LINE_CHART REQUESTS:
-      - If the user asks for a line chart showing a metric over time/days, use LINE_CHART with:
-        * xAxisKey: "day" (to show progression over the forecast days)
-        * yAxisKey: the metric they requested (e.g., "chance_of_rain", "temp", "humidity")
-        * cities: include ALL cities from the weather data
-      - Example: "line chart of chance of rain" → LINE_CHART with xAxisKey="day", yAxisKey="chance_of_rain", cities=[all cities]
-      
-      SPECIAL INSTRUCTIONS FOR CARD REQUESTS:
-      - If the user requests cards showing specific fields (e.g., "cards showing air quality and humidity"), you MUST include a 'dataKeys' array with ONLY those fields.
-      - Example: "cards showing air quality and humidity" → CARD with dataKeys=["aqi", "humidity"], cities=[all cities]
-      - Example: "cards showing chance of rain" → CARD with dataKeys=["chance_of_rain"], cities=[all cities]
-      - Do NOT include fields that were not requested. If the user asks for specific fields, only show those fields.
-    `;
-    };
     
     const generationInstructions = getGenerationInstructions(sanitizedUserPrompt);
 
@@ -189,26 +147,6 @@ export async function generateUiLayout(weatherData: Record<string, WeatherData>,
     console.log('[LLM] Prompt being sent to Gemini:', prompt);
 
     try {
-        const sanitizeString = (str: string): string => {
-            return str.replace(/[^\x00-\x7F]/g, getCharReplacement);
-        };
-
-        const sanitizeSchema = (obj: any): any => {
-            if (typeof obj === 'string') {
-                return sanitizeString(obj);
-            }
-            if (Array.isArray(obj)) {
-                return obj.map(sanitizeSchema);
-            }
-            if (obj && typeof obj === 'object') {
-                return Object.keys(obj).reduce((acc, key) => {
-                    acc[key] = sanitizeSchema(obj[key]);
-                    return acc;
-                }, {} as any);
-            }
-            return obj;
-        };
-        
         const cleanSchema = sanitizeSchema(uiGenerationSchema);
         
         // Also ensure the prompt itself doesn't have problematic characters
@@ -246,16 +184,6 @@ export async function generateUiLayout(weatherData: Record<string, WeatherData>,
         if (jsonText.toLowerCase().includes('error') || !jsonText.startsWith('{')) {
             console.warn("Response may contain an error:", jsonText);
         }
-        
-        const parseLayout = (text: string): any => {
-            try {
-                return JSON.parse(text);
-            } catch (parseError) {
-                console.error("JSON parse error:", parseError);
-                console.error("Response text:", text);
-                throw new Error(`Failed to parse AI response as JSON: ${parseError instanceof Error ? parseError.message : 'Unknown error'}`);
-            }
-        };
 
         const layout = parseLayout(jsonText);
 
@@ -263,21 +191,6 @@ export async function generateUiLayout(weatherData: Record<string, WeatherData>,
             console.error("Invalid layout structure:", layout);
             throw new Error("Invalid layout structure received from AI. Missing required fields: blurb, imagePrompt, or uiComponents array.");
         }
-
-        const validateLineChartComponent = (component: any, index: number): void => {
-            if (component.type !== 'LINE_CHART') return;
-            
-            if (!component.props.xAxisKey || !component.props.yAxisKey) {
-                throw new Error(`LINE_CHART component at index ${index} is missing xAxisKey or yAxisKey in props.`);
-            }
-            if (!component.props.cities || !Array.isArray(component.props.cities)) {
-                throw new Error(`LINE_CHART component at index ${index} is missing cities array in props.`);
-            }
-            const validForecastKeys = ['day', 'temp', 'humidity', 'chance_of_rain'];
-            if (!validForecastKeys.includes(component.props.xAxisKey) && !validForecastKeys.includes(component.props.yAxisKey)) {
-                console.warn(`LINE_CHART component at index ${index} uses keys that may not be in forecast data. Valid keys: ${validForecastKeys.join(', ')}`);
-            }
-        };
 
         layout.uiComponents.reduce((_, component, index) => {
             validateLineChartComponent(component, index);
