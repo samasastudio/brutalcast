@@ -49,29 +49,32 @@ export const WeatherLineChart: React.FC<WeatherLineChartProps> = ({ xAxisKey, yA
   // Better: Use the first city's forecast to define the order of days, as that's chronological.
   const referenceForecast = selectedCitiesData[0]?.forecast || [];
   
-  // Deduplicate X values (e.g., day names) to prevent duplicates, then limit to limitDays
-  const seenXValues = new Set<string | number>();
-  const uniqueOrderedXValues = referenceForecast
-    .map(f => f[xAxisKey])
-    .filter(xValue => {
-      if (seenXValues.has(xValue)) return false;
-      seenXValues.add(xValue);
-      return true;
-    })
-    .slice(0, limitDays);
+  const deduplicateXValues = (values: (string | number)[]): (string | number)[] => {
+    return values.reduce((acc: (string | number)[], value) => {
+      if (acc.includes(value)) return acc;
+      return [...acc, value];
+    }, []);
+  };
 
-  const chartData = uniqueOrderedXValues.map(xValue => {
-    const dataPoint: any = { [xAxisKey]: xValue };
+  const uniqueOrderedXValues = deduplicateXValues(
+    referenceForecast.map(f => f[xAxisKey])
+  ).slice(0, limitDays);
 
-    selectedCitiesData.forEach(cityData => {
+  const buildDataPoint = (xValue: string | number): any => {
+    const basePoint: any = { [xAxisKey]: xValue };
+    
+    const cityValues = selectedCitiesData.reduce((acc, cityData) => {
       const forecastPoint = cityData.forecast!.find(f => f[xAxisKey] === xValue);
       if (forecastPoint) {
-        dataPoint[cityData.city] = forecastPoint[yAxisKey];
+        acc[cityData.city] = forecastPoint[yAxisKey];
       }
-    });
+      return acc;
+    }, {} as Record<string, number>);
+    
+    return { ...basePoint, ...cityValues };
+  };
 
-    return dataPoint;
-  });
+  const chartData = uniqueOrderedXValues.map(buildDataPoint);
 
   return (
     <div className="w-full h-80">

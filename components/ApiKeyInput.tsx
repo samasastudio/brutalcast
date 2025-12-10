@@ -8,7 +8,6 @@ export const ApiKeyInput: React.FC = () => {
     const [isSubmitting, setIsSubmitting] = useState(false);
 
     useEffect(() => {
-        // Auto-populate from env vars if available
         const envGeminiKey = import.meta.env.VITE_GEMINI_API_KEY || '';
         const envOpenWeatherKey = import.meta.env.VITE_OPENWEATHER_API_KEY || '';
         
@@ -18,13 +17,12 @@ export const ApiKeyInput: React.FC = () => {
 
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
-        if (geminiKeyInput && openWeatherKeyInput) {
-            setIsSubmitting(true);
-            // Delay setting keys to allow animation to play
-            setTimeout(() => {
-                setKeys(geminiKeyInput, openWeatherKeyInput);
-            }, 1000);
-        }
+        if (!geminiKeyInput || !openWeatherKeyInput) return;
+        
+        setIsSubmitting(true);
+        setTimeout(() => {
+            setKeys(geminiKeyInput, openWeatherKeyInput);
+        }, 1000);
     };
 
     return (

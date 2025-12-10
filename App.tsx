@@ -43,23 +43,22 @@ const BrutalcastApp: React.FC = () => {
     setUnit(selectedUnit);
 
     try {
-      // 1. Fetch weather data from live OpenWeather API
       const data = await getWeatherForCities(cities, selectedUnit, openWeatherKey);
       setWeatherData(data);
 
-      // 2. Generate UI layout, blurb, and image prompt from Gemini
       const layout = await generateUiLayout(data, prompt, selectedUnit, geminiKey);
       setGeneratedLayout(layout);
 
-      // 3. Generate image from Imagen using the prompt from step 2
-      if (layout.imagePrompt) {
-        try {
-          const imageUrl = await generateImage(layout.imagePrompt, geminiKey);
-          setGeneratedImageUrl(imageUrl);
-        } catch (imageError) {
-          console.error("Image generation failed:", imageError);
-          // Do not set main error, just leave image as null
-        }
+      if (!layout.imagePrompt) {
+        setIsLoading(false);
+        return;
+      }
+
+      try {
+        const imageUrl = await generateImage(layout.imagePrompt, geminiKey);
+        setGeneratedImageUrl(imageUrl);
+      } catch (imageError) {
+        console.error("Image generation failed:", imageError);
       }
 
     } catch (err) {

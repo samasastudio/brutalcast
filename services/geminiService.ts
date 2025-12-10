@@ -1,6 +1,19 @@
 import { GoogleGenAI, Type } from "@google/genai";
 import type { WeatherData, GeneratedLayout, Unit } from '../types';
 
+const getCharReplacement = (char: string): string => {
+    const replacements = new Map([
+        ['°', ' degrees '],
+        ['–', '-'],
+        ['—', '-'],
+        ['"', '"'],
+        ['"', '"'],
+        ["'", "'"],
+        ["'", "'"],
+    ]);
+    return replacements.get(char) || '';
+};
+
 const uiGenerationSchema = {
     type: Type.OBJECT,
     properties: {
@@ -79,20 +92,7 @@ export async function generateUiLayout(weatherData: Record<string, WeatherData>,
     const ai = new GoogleGenAI({ apiKey: cleanApiKey });
     const weatherDataString = JSON.stringify(Object.values(weatherData), null, 2);
     
-    // Sanitize user prompt to remove any problematic characters
-    const sanitizedUserPrompt = userPrompt.replace(/[^\x00-\x7F]/g, (char) => {
-        // Replace common non-ASCII characters with ASCII equivalents
-        const replacements: Record<string, string> = {
-            '°': ' degrees ',
-            '–': '-',
-            '—': '-',
-            '"': '"',
-            '"': '"',
-            "'": "'",
-            "'": "'",
-        };
-        return replacements[char] || '';
-    });
+    const sanitizedUserPrompt = userPrompt.replace(/[^\x00-\x7F]/g, getCharReplacement);
 
     const unitInstructions = `
     The current unit system is '${unit}'.
@@ -101,14 +101,23 @@ export async function generateUiLayout(weatherData: Record<string, WeatherData>,
     IMPORTANT: Please ensure that any titles or labels you generate for the UI components reflect this. For example, a chart title should be 'Temperature Comparison (F)' if the unit is imperial.
   `;
 
-    let generationInstructions: string;
-    if (sanitizedUserPrompt.trim()) {
-        generationInstructions = `
+    const getGenerationInstructions = (prompt: string): string => {
+        if (!prompt.trim()) {
+            return `
+      The user has not specified a layout. Please generate a diverse and interesting layout automatically.
+      Your response should include 3 to 5 different UI components to compare the weather data in interesting ways.
+      - For charts, choose data keys that make for an interesting comparison.
+      - For tables, select a few key columns.
+      - For cards, select a few cities to highlight. Ensure the 'cities' prop is an array of city name strings.
+    `;
+        }
+        
+        return `
       The user has provided a specific request for the UI layout.
       IMPORTANT: You MUST generate ONLY the components described in the user's request. Do NOT add any extra components.
       Fulfill their request as accurately as possible.
       
-      User's request: "${sanitizedUserPrompt}"
+      User's request: "${prompt}"
       
       SPECIAL INSTRUCTIONS FOR LINE_CHART REQUESTS:
       - If the user asks for a line chart showing a metric over time/days, use LINE_CHART with:
@@ -123,15 +132,9 @@ export async function generateUiLayout(weatherData: Record<string, WeatherData>,
       - Example: "cards showing chance of rain" → CARD with dataKeys=["chance_of_rain"], cities=[all cities]
       - Do NOT include fields that were not requested. If the user asks for specific fields, only show those fields.
     `;
-    } else {
-        generationInstructions = `
-      The user has not specified a layout. Please generate a diverse and interesting layout automatically.
-      Your response should include 3 to 5 different UI components to compare the weather data in interesting ways.
-      - For charts, choose data keys that make for an interesting comparison.
-      - For tables, select a few key columns.
-      - For cards, select a few cities to highlight. Ensure the 'cities' prop is an array of city name strings.
-    `;
-    }
+    };
+    
+    const generationInstructions = getGenerationInstructions(sanitizedUserPrompt);
 
     /* ============================================
        PRESENTATION MARKER #3: LLM INPUT PROMPT
@@ -169,7 +172,7 @@ export async function generateUiLayout(weatherData: Record<string, WeatherData>,
     
     Component-specific rules:
     - BAR_CHART: Use 'dataKeys' to select metrics from the main weather object.
-    - SCATTER_CHART: Use 'xAxisKey', 'yAxisKey', 'zAxisKey' for metrics from the main weather object.
+    - SCATTER_CHART: Use 'xAxisKey', 'yAxisKey', 'zAxisKey' for metrics from the main weather object. You can also use 'chance_of_rain' (from the first forecast day) as an axis key. For example, to plot humidity vs chance of rain, use xAxisKey="humidity", yAxisKey="chance_of_rain", and zAxisKey can be any numeric field like "temp" or "pressure".
     - LINE_CHART: This chart is for visualizing forecast data over time. You MUST provide:
       * 'xAxisKey': Should be 'day' to show progression over days (the forecast array has 'day' as the first field)
       * 'yAxisKey': One of 'temp', 'humidity', or 'chance_of_rain' from the forecast data
@@ -186,33 +189,22 @@ export async function generateUiLayout(weatherData: Record<string, WeatherData>,
     console.log('[LLM] Prompt being sent to Gemini:', prompt);
 
     try {
-        // Create a deep copy of the schema and sanitize all string descriptions
-        // to ensure no non-ASCII characters cause header encoding issues
+        const sanitizeString = (str: string): string => {
+            return str.replace(/[^\x00-\x7F]/g, getCharReplacement);
+        };
+
         const sanitizeSchema = (obj: any): any => {
             if (typeof obj === 'string') {
-                // Replace any non-ASCII characters with ASCII equivalents
-                return obj.replace(/[^\x00-\x7F]/g, (char) => {
-                    const replacements: Record<string, string> = {
-                        '°': ' degrees ',
-                        '–': '-',
-                        '—': '-',
-                        '"': '"',
-                        '"': '"',
-                        "'": "'",
-                        "'": "'",
-                    };
-                    return replacements[char] || '';
-                });
+                return sanitizeString(obj);
             }
             if (Array.isArray(obj)) {
                 return obj.map(sanitizeSchema);
             }
             if (obj && typeof obj === 'object') {
-                const sanitized: any = {};
-                for (const key in obj) {
-                    sanitized[key] = sanitizeSchema(obj[key]);
-                }
-                return sanitized;
+                return Object.keys(obj).reduce((acc, key) => {
+                    acc[key] = sanitizeSchema(obj[key]);
+                    return acc;
+                }, {} as any);
             }
             return obj;
         };
@@ -232,7 +224,6 @@ export async function generateUiLayout(weatherData: Record<string, WeatherData>,
             },
         });
 
-        // Check if response has an error
         if (!response || !response.text) {
             console.error("Invalid response structure:", response);
             throw new Error("AI returned an invalid response structure");
@@ -252,41 +243,46 @@ export async function generateUiLayout(weatherData: Record<string, WeatherData>,
         const jsonText = response.text.trim();
         console.log("Raw AI response:", jsonText);
         
-        // Check if response looks like an error message
-        if (jsonText.toLowerCase().includes('error') || jsonText.startsWith('{') === false) {
+        if (jsonText.toLowerCase().includes('error') || !jsonText.startsWith('{')) {
             console.warn("Response may contain an error:", jsonText);
         }
         
-        let layout;
-        try {
-            layout = JSON.parse(jsonText);
-        } catch (parseError) {
-            console.error("JSON parse error:", parseError);
-            console.error("Response text:", jsonText);
-            throw new Error(`Failed to parse AI response as JSON: ${parseError instanceof Error ? parseError.message : 'Unknown error'}`);
-        }
+        const parseLayout = (text: string): any => {
+            try {
+                return JSON.parse(text);
+            } catch (parseError) {
+                console.error("JSON parse error:", parseError);
+                console.error("Response text:", text);
+                throw new Error(`Failed to parse AI response as JSON: ${parseError instanceof Error ? parseError.message : 'Unknown error'}`);
+            }
+        };
 
-        // Basic validation
+        const layout = parseLayout(jsonText);
+
         if (!layout.blurb || !layout.imagePrompt || !Array.isArray(layout.uiComponents)) {
             console.error("Invalid layout structure:", layout);
             throw new Error("Invalid layout structure received from AI. Missing required fields: blurb, imagePrompt, or uiComponents array.");
         }
 
-        // Validate LINE_CHART components
-        layout.uiComponents.forEach((component: any, index: number) => {
-            if (component.type === 'LINE_CHART') {
-                if (!component.props.xAxisKey || !component.props.yAxisKey) {
-                    throw new Error(`LINE_CHART component at index ${index} is missing xAxisKey or yAxisKey in props.`);
-                }
-                if (!component.props.cities || !Array.isArray(component.props.cities)) {
-                    throw new Error(`LINE_CHART component at index ${index} is missing cities array in props.`);
-                }
-                const validForecastKeys = ['day', 'temp', 'humidity', 'chance_of_rain'];
-                if (!validForecastKeys.includes(component.props.xAxisKey) && !validForecastKeys.includes(component.props.yAxisKey)) {
-                    console.warn(`LINE_CHART component at index ${index} uses keys that may not be in forecast data. Valid keys: ${validForecastKeys.join(', ')}`);
-                }
+        const validateLineChartComponent = (component: any, index: number): void => {
+            if (component.type !== 'LINE_CHART') return;
+            
+            if (!component.props.xAxisKey || !component.props.yAxisKey) {
+                throw new Error(`LINE_CHART component at index ${index} is missing xAxisKey or yAxisKey in props.`);
             }
-        });
+            if (!component.props.cities || !Array.isArray(component.props.cities)) {
+                throw new Error(`LINE_CHART component at index ${index} is missing cities array in props.`);
+            }
+            const validForecastKeys = ['day', 'temp', 'humidity', 'chance_of_rain'];
+            if (!validForecastKeys.includes(component.props.xAxisKey) && !validForecastKeys.includes(component.props.yAxisKey)) {
+                console.warn(`LINE_CHART component at index ${index} uses keys that may not be in forecast data. Valid keys: ${validForecastKeys.join(', ')}`);
+            }
+        };
+
+        layout.uiComponents.reduce((_, component, index) => {
+            validateLineChartComponent(component, index);
+            return null;
+        }, null);
 
         return layout as GeneratedLayout;
 
@@ -311,12 +307,12 @@ export async function generateImage(prompt: string, apiKey: string): Promise<str
             },
         });
 
-        if (response.generatedImages && response.generatedImages.length > 0) {
-            const base64ImageBytes: string = response.generatedImages[0].image.imageBytes;
-            return `data:image/jpeg;base64,${base64ImageBytes}`;
-        } else {
+        if (!response.generatedImages || response.generatedImages.length === 0) {
             throw new Error("No image was generated.");
         }
+        
+        const base64ImageBytes: string = response.generatedImages[0].image.imageBytes;
+        return `data:image/jpeg;base64,${base64ImageBytes}`;
     } catch (error) {
         console.error("Error generating image:", error);
         throw new Error("Failed to generate the weather visualization image.");

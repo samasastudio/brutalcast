@@ -16,28 +16,29 @@ export function useRateLimit(): RateLimitInfo {
 
     useEffect(() => {
         const storedData = localStorage.getItem('rateLimitData');
-        if (storedData) {
-            const { count, reset } = JSON.parse(storedData);
-            const now = Date.now();
+        if (!storedData) return;
+        
+        const { count, reset } = JSON.parse(storedData);
+        const now = Date.now();
 
-            if (now > reset) {
-                // Reset window has passed
-                setRequestCount(0);
-                setResetTime(null);
-                localStorage.removeItem('rateLimitData');
-            } else {
-                setRequestCount(count);
-                setResetTime(reset);
-            }
+        if (now > reset) {
+            setRequestCount(0);
+            setResetTime(null);
+            localStorage.removeItem('rateLimitData');
+            return;
         }
+        
+        setRequestCount(count);
+        setResetTime(reset);
     }, []);
 
     const incrementCount = () => {
         const now = Date.now();
-        let newResetTime = resetTime;
-
-        if (!resetTime || now > resetTime) {
-            newResetTime = now + TIME_WINDOW;
+        const newResetTime = (!resetTime || now > resetTime) 
+            ? now + TIME_WINDOW 
+            : resetTime;
+        
+        if (newResetTime !== resetTime) {
             setResetTime(newResetTime);
         }
 

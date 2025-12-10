@@ -51,9 +51,9 @@ export interface LineChartProps {
 }
 
 export interface ScatterChartProps {
-  xAxisKey: keyof WeatherData;
-  yAxisKey: keyof WeatherData;
-  zAxisKey: keyof WeatherData;
+  xAxisKey: keyof WeatherData | 'chance_of_rain';
+  yAxisKey: keyof WeatherData | 'chance_of_rain';
+  zAxisKey: keyof WeatherData | 'chance_of_rain';
 }
 
 export type UiComponentConfig =

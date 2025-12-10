@@ -14,9 +14,8 @@ export const SearchForm: React.FC<SearchFormProps> = ({ onSearch, isLoading }) =
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     const cities = input.split(',').map(c => c.trim()).filter(Boolean);
-    if (cities.length > 0) {
-      onSearch(cities, prompt, unit);
-    }
+    if (cities.length === 0) return;
+    onSearch(cities, prompt, unit);
   };
 
   return (

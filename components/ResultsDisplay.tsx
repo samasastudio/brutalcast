@@ -32,23 +32,25 @@ export const ResultsDisplay: React.FC<ResultsDisplayProps> = ({ weatherData, lay
      design consistency - the LLM creates the structure,
      our code handles the rendering.
   */
-  const renderUiComponent = (config: UiComponentConfig) => {
-    const allCitiesData = Object.values(weatherData);
+  const allCitiesData = Object.values(weatherData);
 
-    switch (config.type) {
-      case 'TABLE':
-        return <WeatherTable {...config.props} allData={allCitiesData} unit={unit} />;
-      case 'CARD':
-        return <WeatherCard {...config.props} allData={allCitiesData} unit={unit} />;
-      case 'BAR_CHART':
-        return <WeatherBarChart {...config.props} allData={allCitiesData} unit={unit} />;
-      case 'LINE_CHART':
-        return <WeatherLineChart {...config.props} allData={allCitiesData} unit={unit} />;
-      case 'SCATTER_CHART':
-        return <WeatherScatterChart {...config.props} allData={allCitiesData} unit={unit} />;
-      default:
-        return <div>Unknown component type: {(config as any).type}</div>;
+  const renderUiComponent = (config: UiComponentConfig) => {
+    if (config.type === 'TABLE') {
+      return <WeatherTable {...config.props} allData={allCitiesData} unit={unit} />;
     }
+    if (config.type === 'CARD') {
+      return <WeatherCard {...config.props} allData={allCitiesData} unit={unit} />;
+    }
+    if (config.type === 'BAR_CHART') {
+      return <WeatherBarChart {...config.props} allData={allCitiesData} unit={unit} />;
+    }
+    if (config.type === 'LINE_CHART') {
+      return <WeatherLineChart {...config.props} allData={allCitiesData} unit={unit} />;
+    }
+    if (config.type === 'SCATTER_CHART') {
+      return <WeatherScatterChart {...config.props} allData={allCitiesData} unit={unit} />;
+    }
+    return <div>Unknown component type: {(config as any).type}</div>;
   };
 
   return (
