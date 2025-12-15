@@ -76,7 +76,7 @@ const BrutalcastApp: React.FC = () => {
       <main className={`max-w-7xl mx-auto transition-opacity duration-500 ${!hasKeys ? 'opacity-0 pointer-events-none' : 'opacity-100'}`}>
         <header className="text-center mb-8">
           <h1 className="text-4xl md:text-6xl font-bold tracking-tighter border-4 border-black p-4 inline-block shadow-[8px_8px_0px_#facc15]">
-            Brutalcast
+            This Weather is Brutal
           </h1>
           <p className="mt-4 text-lg text-gray-700 max-w-2xl mx-auto">
             Compare city climates with AI-generated visualizations. Enter cities, get insights.
